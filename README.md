@@ -9,10 +9,10 @@ Retrospective Agent:
 - Builds a timeline for executives
 - Computes team insights (cycle time and throughput)
 - Generates retrospective talking points by giving examples of tasks that:
-- ✅ What went well 
-- ⚠️ What didn't go as planned 
-- 🔁 What to try in the future 
-- Writes everything into a formatted Google Doc
+  ✅ What went well (<= 5 day cycle time)
+  ⚠️ What didn't go as planned (>5 day cycle time)
+  🔁 What to try differently next time (based on the above)
+- Writes everything into a formatted Google Doc specifically to the root of "My Drive" based on the epic name.
 
 This helps teams run faster, more consistent, and more data-informed retrospectives.
 
@@ -34,7 +34,7 @@ This helps teams run faster, more consistent, and more data-informed retrospecti
 
 ### 1. Clone the repo
 
-git clone https://github.com/YOUR_ORG/retrospective-agent.git cd
+git clone https://github.com/YOUR_ORGANIZATION/retrospective-agent.git cd
 retrospective-agent
 
 ### 2. Install dependencies
@@ -51,8 +51,8 @@ cp .env.example .env
 
 ### 2. Fill in required values
 
-JIRA_BASE_URL=https://your-company.atlassian.net
-JIRA_EMAIL=your-email@company.com JIRA_API_TOKEN=your_jira_api_token
+JIRA_BASE_URL=https://your_organization.atlassian.net
+JIRA_EMAIL=your-email@your_organization.com JIRA_API_TOKEN=your_jira_api_token
 
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
@@ -78,12 +78,17 @@ npm start
 
 ## Project Structure
 
-src/ index.ts utils/buildRetrospective.ts integrations/jira.ts
-integrations/google.ts
+src/
+  index.ts                      # Entry point (Express server / orchestration)
+  tools/
+    buildRetrospective.ts       # Core retrospective generation logic
+  integrations/
+    jira.ts                     # Jira API integration
+    google.ts                   # Google Docs integration
 
 ------------------------------------------------------------------------
 
-## Jira Setup
+## Jira Integration Setup
 
 1.  Go to https://id.atlassian.com/manage-profile/security/api-tokens\
 2.  Create API token\
@@ -91,7 +96,7 @@ integrations/google.ts
 
 ------------------------------------------------------------------------
 
-## Google Docs Setup
+## Google Docs Integration Setup
 
 1.  Create project in Google Cloud Console\
 2.  Enable Docs + Drive APIs\
