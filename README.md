@@ -68,12 +68,12 @@ retrospective-agent`
 
 ### 2. Fill in required values
 
-`JIRA_BASE_URL=https://your_organization.atlassian.net
-JIRA_EMAIL=your-email@your_organization.com JIRA_API_TOKEN=your_jira_api_token
+`JIRA_BASE_URL=https://your_organization.atlassian.net`
+`JIRA_EMAIL=your-email@your_organization.com JIRA_API_TOKEN=your_jira_api_token`
 
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_REFRESH_TOKEN=your_google_refresh_token`
+`GOOGLE_CLIENT_ID=your_google_client_id`
+`GOOGLE_CLIENT_SECRET=your_google_client_secret`
+`GOOGLE_REFRESH_TOKEN=your_google_refresh_token`
 
 ------------------------------------------------------------------------
 
