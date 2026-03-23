@@ -29,9 +29,9 @@ npm run dev
 
 In a second terminal window after running the app above, you'll want to run the following command:
 
-curl -X POST `http://localhost:3000/run`   -H "Content-Type: application/json"   -d '{"board_name":"[JIRA_BOARD_NAME_GOES_HERE]","epic_key":"[JIRA_EPIC_KEY_GOES_HERE]}'
+`curl -X POST http://localhost:3000/run  -H "Content-Type: application/json"   -d '{"board_name":"[JIRA_BOARD_NAME_GOES_HERE]","epic_key":"[JIRA_EPIC_KEY_GOES_HERE]}'`
 
-EXAMPLE: curl -X POST `http://localhost:3000/run`   -H "Content-Type: application/json"   -d '{"board_name":"assessment js","epic_key":"AJ-581"}'
+EXAMPLE: `curl -X POST http://localhost:3000/run  -H "Content-Type: application/json"   -d '{"board_name":"assessment js","epic_key":"AJ-581"}'`
 
 ------------------------------------------------------------------------
 
@@ -51,12 +51,12 @@ EXAMPLE: curl -X POST `http://localhost:3000/run`   -H "Content-Type: applicatio
 
 ### 1. Clone the repo
 
-git clone https://github.com/YOUR_ORGANIZATION/retrospective-agent.git cd
-retrospective-agent
+`git clone https://github.com/YOUR_ORGANIZATION/retrospective-agent.git cd
+retrospective-agent`
 
 ### 2. Install dependencies
 
-npm install
+`npm install`
 
 ------------------------------------------------------------------------
 
@@ -64,16 +64,16 @@ npm install
 
 ### 1. Create .env from example
 
-cp .env.example .env
+`cp .env.example .env`
 
 ### 2. Fill in required values
 
-JIRA_BASE_URL=https://your_organization.atlassian.net
+`JIRA_BASE_URL=https://your_organization.atlassian.net
 JIRA_EMAIL=your-email@your_organization.com JIRA_API_TOKEN=your_jira_api_token
 
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_REFRESH_TOKEN=your_google_refresh_token
+GOOGLE_REFRESH_TOKEN=your_google_refresh_token`
 
 ------------------------------------------------------------------------
 
@@ -81,15 +81,15 @@ GOOGLE_REFRESH_TOKEN=your_google_refresh_token
 
 ### Development mode
 
-npm run dev
+`npm run dev`
 
 ### Build
 
-npm run build
+`npm run build`
 
 ### Run production
 
-npm start
+`npm start`
 
 ------------------------------------------------------------------------
 
