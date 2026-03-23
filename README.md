@@ -96,28 +96,28 @@ npm start
 ## Project Structure
 
 src/
-  index.ts                      # Entry point (Express server / orchestration)
-  tools/
-    buildRetrospective.ts       # Core retrospective generation logic
-  integrations/
-    jira.ts                     # Jira API integration
-    google.ts                   # Google Docs integration
+ * index.ts                      # Entry point (Express server / orchestration)
+ * tools/
+    * buildRetrospective.ts       # Core retrospective generation logic
+ * integrations/
+    * jira.ts                     # Jira API integration
+    * google.ts                   # Google Docs integration
 
 ------------------------------------------------------------------------
 
 ## Jira Integration Setup
 
-1.  Go to https://id.atlassian.com/manage-profile/security/api-tokens\
-2.  Create API token\
+1.  Go to https://id.atlassian.com/manage-profile/security/api-tokens
+2.  Create API token
 3.  Copy into .env
 
 ------------------------------------------------------------------------
 
 ## Google Docs Integration Setup
 
-1.  Create project in Google Cloud Console\
-2.  Enable Docs + Drive APIs\
-3.  Create OAuth credentials (Desktop App)\
+1.  Create project in Google Cloud Console
+2.  Enable Docs + Drive APIs
+3.  Create OAuth credentials (Ben has a helper script to generate these if desired)
 4.  Generate refresh token via OAuth Playground
 
 ------------------------------------------------------------------------
