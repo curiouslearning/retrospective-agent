@@ -29,9 +29,9 @@ npm run dev
 
 In a second terminal window after running the app above, you'll want to run the following command:
 
-curl -X POST http://localhost:3000/run   -H "Content-Type: application/json"   -d '{"board_name":"[JIRA_BOARD_NAME_GOES_HERE]","epic_key":"[JIRA_EPIC_KEY_GOES_HERE]}'
+curl -X POST `http://localhost:3000/run`   -H "Content-Type: application/json"   -d '{"board_name":"[JIRA_BOARD_NAME_GOES_HERE]","epic_key":"[JIRA_EPIC_KEY_GOES_HERE]}'
 
-EXAMPLE: curl -X POST http://localhost:3000/run   -H "Content-Type: application/json"   -d '{"board_name":"assessment js","epic_key":"AJ-581"}'
+EXAMPLE: curl -X POST `http://localhost:3000/run`   -H "Content-Type: application/json"   -d '{"board_name":"assessment js","epic_key":"AJ-581"}'
 
 ------------------------------------------------------------------------
 
