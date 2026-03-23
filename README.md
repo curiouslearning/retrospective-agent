@@ -70,7 +70,9 @@ retrospective-agent`
 
 `JIRA_BASE_URL=https://your_organization.atlassian.net`
 
-`JIRA_EMAIL=your-email@your_organization.com JIRA_API_TOKEN=your_jira_api_token`
+`JIRA_EMAIL=your-email@your_organization.com`
+
+`JIRA_API_TOKEN=your_jira_api_token`
 
 
 `GOOGLE_CLIENT_ID=your_google_client_id`
@@ -105,7 +107,7 @@ src/
     * buildRetrospective.ts       # Core retrospective generation logic
  * integrations/
     * jira.ts                     # Jira API integration
-    * google.ts                   # Google Docs integration
+    * google.ts                   # Google Docs integration and styling
 
 ------------------------------------------------------------------------
 
