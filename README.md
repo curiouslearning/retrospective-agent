@@ -9,12 +9,29 @@ Retrospective Agent:
 - Builds a timeline for executives
 - Computes team insights (cycle time and throughput)
 - Generates retrospective talking points by giving examples of tasks that:
-  ✅ What went well (<= 5 day cycle time)
-  ⚠️ What didn't go as planned (>5 day cycle time)
-  🔁 What to try differently next time (based on the above)
+  - ✅ What went well (<= 5 day cycle time)
+  - ⚠️ What didn't go as planned (>5 day cycle time)
+  - 🔁 What to try differently next time (based on the above)
 - Writes everything into a formatted Google Doc specifically to the root of "My Drive" based on the epic name.
 
 This helps teams run faster, more consistent, and more data-informed retrospectives.
+
+
+------------------------------------------------------------------------
+
+## Key Usage Commands
+
+### 1. Running the app
+
+npm run dev
+
+### 2. Running a retrospective
+
+In a second terminal window after running the app above, you'll want to run the following command:
+
+curl -X POST http://localhost:3000/run   -H "Content-Type: application/json"   -d '{"board_name":"[JIRA_BOARD_NAME_GOES_HERE]","epic_key":"[JIRA_EPIC_KEY_GOES_HERE]}'
+
+EXAMPLE: curl -X POST http://localhost:3000/run   -H "Content-Type: application/json"   -d '{"board_name":"assessment js","epic_key":"AJ-581"}'
 
 ------------------------------------------------------------------------
 
