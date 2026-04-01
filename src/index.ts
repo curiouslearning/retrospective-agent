@@ -1245,7 +1245,7 @@ app.get("/api/epics", async (req, res) => {
         }
 
         const epics = await getOngoingEpics(board);
-        
+
         const epicsWithDocs = await Promise.all(
             epics.map(async (epic) => {
                 const existing = await getRetrospective(epic.key);
@@ -1269,7 +1269,7 @@ app.get("/api/analytics", async (req, res) => {
     try {
         const projectKey = req.query.project as string;
         const daysBack = parseInt(req.query.daysBack as string) || 30;
-        
+
         if (!projectKey) {
             res.status(400).json({ error: "Missing project query parameter" });
             return;
