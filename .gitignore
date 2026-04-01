@@ -45,3 +45,8 @@ Thumbs.db
 # Misc
 # -------------------------
 coverage/
+
+# -------------------------
+# Generated data
+# -------------------------
+retrospectives.json

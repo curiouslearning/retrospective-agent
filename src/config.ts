@@ -13,5 +13,7 @@ export const config = {
     GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN!,
 
     EDITOR_EMAIL: process.env.EDITOR_EMAIL!,
-    DEFAULT_TIMEZONE: process.env.DEFAULT_TIMEZONE || "America/Chicago"
+    DEFAULT_TIMEZONE: process.env.DEFAULT_TIMEZONE || "America/Chicago",
+
+    SLACK_WEBHOOK_URL: process.env.SLACK_WEBHOOK_URL || ""
 };
