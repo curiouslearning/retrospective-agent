@@ -26,9 +26,10 @@ export function setupAuth(app: Express, config: {
   console.log('OAuth callback URL:', `${config.baseUrl}/auth/callback`);
   passport.use(new GoogleStrategy(
     {
-      clientID: config.googleClientId,
-      clientSecret: config.googleClientSecret,
-      callbackURL: `${config.baseUrl}/auth/callback`,
+    clientID: config.googleClientId,
+    clientSecret: config.googleClientSecret,
+    callbackURL: `${config.baseUrl}/auth/callback`,
+    proxy: true,
     },
     (_accessToken, _refreshToken, profile, done) => {
       const email = profile.emails?.[0]?.value;
@@ -48,10 +49,12 @@ export function setupAuth(app: Express, config: {
     scope: ['email', 'profile'],
   }));
 
-  app.get('/auth/callback',
-    passport.authenticate('google', { failureRedirect: '/auth/denied' }),
-    (_req: Request, res: Response) => res.redirect('/')
-  );
+    app.get('/auth/callback',
+        passport.authenticate('google', { 
+        failureRedirect: '/auth/denied',
+        }),
+        (_req: Request, res: Response) => res.redirect('/')
+    );
 
   app.get('/auth/denied', (_req: Request, res: Response) => {
     res.status(403).send('Access denied. Your account is not on the allowlist.');
