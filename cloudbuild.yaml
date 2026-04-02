@@ -1,0 +1,37 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build
+    args:
+      - 'build'
+      - '-t'
+      - 'us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:$COMMIT_SHA'
+      - '.'
+
+  # Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push
+    waitFor: ['build']
+    args:
+      - 'push'
+      - 'us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:$COMMIT_SHA'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy
+    waitFor: ['push']
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'retrospective-agent'
+      - '--image=us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:$COMMIT_SHA'
+      - '--region=us-east1'
+      - '--platform=managed'
+      - '--no-allow-unauthenticated'
+
+images:
+  - 'us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
