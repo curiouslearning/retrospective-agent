@@ -1,5 +1,4 @@
-import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { google } from 'googleapis';
 import cookieSession from 'cookie-session';
 import { Express, Request, Response, NextFunction } from 'express';
 
@@ -10,6 +9,16 @@ export function setupAuth(app: Express, config: {
   allowedEmails: string[];
   baseUrl: string;
 }) {
+  const callbackURL = `${config.baseUrl}/auth/callback`;
+
+  function getOAuthClient() {
+    return new google.auth.OAuth2(
+      config.googleClientId,
+      config.googleClientSecret,
+      callbackURL,
+    );
+  }
+
   app.use(cookieSession({
     name: 'session',
     keys: [config.sessionSecret],
@@ -18,71 +27,52 @@ export function setupAuth(app: Express, config: {
     sameSite: 'lax',
   }));
 
-  // Passport compatibility shim for cookie-session
-  app.use((req: any, _res: any, next: any) => {
-    if (req.session && !req.session.regenerate) {
-      req.session.regenerate = (cb: any) => cb();
-    }
-    if (req.session && !req.session.save) {
-      req.session.save = (cb: any) => cb();
-    }
-    next();
+  app.get('/auth/login', (_req: Request, res: Response) => {
+    const oAuth2Client = getOAuthClient();
+    const url = oAuth2Client.generateAuthUrl({
+      access_type: 'online',
+      scope: ['email', 'profile'],
+    });
+    res.redirect(url);
   });
 
-  app.use(passport.initialize());
-  app.use(passport.session());
+  app.get('/auth/callback', async (req: Request, res: Response) => {
+    const code = req.query.code as string;
+    if (!code) {
+      return res.status(400).send('Missing authorization code');
+    }
+    try {
+      const oAuth2Client = getOAuthClient();
+      const { tokens } = await oAuth2Client.getToken(code);
+      oAuth2Client.setCredentials(tokens);
 
-  passport.use(new GoogleStrategy(
-    {
-      clientID: config.googleClientId,
-      clientSecret: config.googleClientSecret,
-      callbackURL: `${config.baseUrl}/auth/callback`,
-      proxy: true,
-    },
-    (_accessToken, _refreshToken, profile, done) => {
-      const email = profile.emails?.[0]?.value;
-      if (!email) return done(null, false);
-      if (!config.allowedEmails.includes(email.toLowerCase())) {
-        return done(null, false);
+      const oauth2 = google.oauth2({ version: 'v2', auth: oAuth2Client });
+      const { data } = await oauth2.userinfo.get();
+      const email = data.email?.toLowerCase();
+
+      if (!email || !config.allowedEmails.includes(email)) {
+        return res.redirect('/auth/denied');
       }
-      return done(null, { email, name: profile.displayName });
+
+      (req.session as any).user = { email, name: data.name };
+      return res.redirect('/');
+    } catch (err: any) {
+      console.error('OAuth callback error:', err.message);
+      return res.status(500).send(`Authentication failed: ${err.message}`);
     }
-  ));
-
-  passport.serializeUser((user, done) => done(null, user));
-  passport.deserializeUser((user, done) => done(null, user as Express.User));
-
-  // Auth routes
-    app.get('/auth/login', passport.authenticate('google', {
-        scope: ['email', 'profile'],
-        state: false,
-    } as any));
-
-  app.get('/auth/callback',
-    (req: Request, res: Response, next: NextFunction) => {
-      passport.authenticate('google', {
-        failureRedirect: '/auth/denied',
-      }, (err: any, user: any) => {
-        if (err) return next(err);
-        if (!user) return res.redirect('/auth/denied');
-        req.logIn(user, (loginErr) => {
-          if (loginErr) return next(loginErr);
-          return res.redirect('/');
-        });
-      })(req, res, next);
-    }
-  );
+  });
 
   app.get('/auth/denied', (_req: Request, res: Response) => {
     res.status(403).send('Access denied. Your account is not on the allowlist.');
   });
 
   app.get('/auth/logout', (req: Request, res: Response) => {
-    req.logout(() => res.redirect('/auth/login'));
+    req.session = null;
+    res.redirect('/auth/login');
   });
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated()) return next();
+  if ((req.session as any)?.user) return next();
   res.redirect('/auth/login');
 }
