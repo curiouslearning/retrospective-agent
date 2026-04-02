@@ -37,6 +37,17 @@ export interface AppConfig {
 
     /** Cloud Storage bucket name for storing retrospectives.json */
     STORAGE_BUCKET: string;
+
+    /** Google OAuth2 client ID for browser login */
+    GOOGLE_OAUTH_CLIENT_ID: string;
+    /** Google OAuth2 client secret for browser login */
+    GOOGLE_OAUTH_CLIENT_SECRET: string;
+    /** Secret used to sign session cookies */
+    SESSION_SECRET: string;
+    /** List of emails permitted to access the app */
+    ALLOWED_EMAILS: string[];
+    /** Public base URL of the service, used for OAuth callback */
+    BASE_URL: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,17 +61,33 @@ export let config: AppConfig;
 
 export async function loadConfig(): Promise<AppConfig> {
     // Fetch secrets in parallel to keep startup fast
-    const [jiraApiToken, jiraBaseUrl, jiraEmail, serviceAccountJson, slackWebhookUrl, googleDriveFolderId, storageBucket, driveUser] =
-        await Promise.all([
-            getSecret("retrospective-jira-token"),
-            getSecret("retrospective-jira-base-url"),
-            getSecret("retrospective-jira-email"),
-            getSecret("retrospective-service-account"),
-            getSecret("retrospective-slack-webhook").catch(() => ""),
-            getSecret("retrospective-drive-folder-id"),
-            getSecret("retrospective-storage-bucket"),
-            getSecret("retrospective-drive-user"),
-        ]);
+    const [
+        jiraApiToken,
+        jiraBaseUrl,
+        jiraEmail,
+        serviceAccountJson,
+        slackWebhookUrl,
+        googleDriveFolderId,
+        storageBucket,
+        driveUser,
+        googleOauthClientId,
+        googleOauthClientSecret,
+        sessionSecret,
+        allowedEmailsRaw,
+    ] = await Promise.all([
+        getSecret("retrospective-jira-token"),
+        getSecret("retrospective-jira-base-url"),
+        getSecret("retrospective-jira-email"),
+        getSecret("retrospective-service-account"),
+        getSecret("retrospective-slack-webhook").catch(() => ""),
+        getSecret("retrospective-drive-folder-id"),
+        getSecret("retrospective-storage-bucket"),
+        getSecret("retrospective-drive-user"),
+        getSecret("retrospective-oauth-client-id"),
+        getSecret("retrospective-oauth-client-secret"),
+        getSecret("retrospective-session-secret"),
+        getSecret("retrospective-allowed-emails"),
+    ]);
 
     const serviceAccount = JSON.parse(serviceAccountJson);
 
@@ -77,7 +104,6 @@ export async function loadConfig(): Promise<AppConfig> {
     config = {
         PORT: Number(process.env.PORT ?? 8080), // Cloud Run default is 8080
 
-        // Non-sensitive values stay as env vars on the Cloud Run service
         JIRA_BASE_URL: jiraBaseUrl,
         JIRA_EMAIL: jiraEmail,
         JIRA_API_TOKEN: jiraApiToken,
@@ -90,6 +116,12 @@ export async function loadConfig(): Promise<AppConfig> {
         SLACK_WEBHOOK_URL: slackWebhookUrl,
 
         STORAGE_BUCKET: storageBucket,
+
+        GOOGLE_OAUTH_CLIENT_ID: googleOauthClientId,
+        GOOGLE_OAUTH_CLIENT_SECRET: googleOauthClientSecret,
+        SESSION_SECRET: sessionSecret,
+        ALLOWED_EMAILS: allowedEmailsRaw.split(",").map((e) => e.trim().toLowerCase()),
+        BASE_URL: process.env.BASE_URL ?? "http://localhost:8080",
     };
 
     return config;

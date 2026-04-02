@@ -25,11 +25,43 @@ The **Retrospective Agent** automates creation of Retrospective documents in Goo
 - Express (with web UI)
 - Jira REST API
 - Google Docs + Drive API (via service account)
+- Google OAuth2 (browser login)
 - Google Cloud Secret Manager
 - Google Cloud Storage
 - Google Cloud Run
 - Slack Webhooks (optional)
 - Chart.js (analytics)
+
+------------------------------------------------------------------------
+
+## Authentication
+
+The app uses **Google OAuth2** for browser access. When a user visits the app, they are redirected to a Google login prompt. After signing in, their email is checked against an allowlist stored in Secret Manager (`retrospective-allowed-emails`). Only listed emails are granted access.
+
+Sessions are maintained via a signed cookie (8-hour expiry). The `/health` endpoint is exempt from authentication so Cloud Run can probe it freely.
+
+### Adding or Removing Users
+
+Update the `retrospective-allowed-emails` secret with a comma-separated list of email addresses:
+
+```bash
+echo -n "user1@example.com,user2@example.com" | \
+  gcloud secrets versions add retrospective-allowed-emails \
+  --project=gdl-reader-dev --data-file=-
+```
+
+Changes take effect on the next container startup (i.e. after the next deploy or Cloud Run scale event). To force immediate effect, redeploy:
+
+```bash
+gcloud run deploy retrospective-agent --region=us-east1 --project=gdl-reader-dev \
+  --image=us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:latest
+```
+
+### OAuth Consent Screen
+
+The OAuth app is configured as **External** with **Testing** status in GCP, which supports up to 100 users. Each allowed user must also be added to the test user list in:
+
+**APIs & Services → OAuth consent screen → Test users**
 
 ------------------------------------------------------------------------
 
@@ -47,7 +79,7 @@ Download and install from https://cloud.google.com/sdk/docs/install, then initia
 gcloud init
 ```
 
-Sign in with your `@curiouslearning.org` Google account when prompted.
+Sign in with your Google account when prompted.
 
 ### 3. Request GCP Access
 
@@ -56,7 +88,7 @@ Ask a project admin to grant your Google account access to `gdl-reader-dev`:
 ```bash
 # Admin runs this — replace with the new dev's email
 gcloud projects add-iam-policy-binding gdl-reader-dev \
-  --member="user:devname@curiouslearning.org" \
+  --member="user:devname@example.com" \
   --role="roles/secretmanager.secretAccessor"
 ```
 
@@ -70,22 +102,30 @@ gcloud auth application-default login
 
 ### 5. Enable Google APIs for Local Development
 
-Required once per developer — enables the Docs and Drive APIs under your local GCP quota:
+Required once per developer:
 
 ```bash
 gcloud services enable docs.googleapis.com drive.googleapis.com
 ```
 
-### 6. Clone and Run
+### 6. Add Localhost Redirect URI
+
+In **GCP Console → APIs & Services → Credentials → OAuth 2.0 Client ID**, add:
+
+```
+http://localhost:8080/auth/callback
+```
+
+### 7. Clone and Run
 
 ```bash
-git clone https://github.com/YOUR_ORGANIZATION/retrospective-agent.git
+git clone https://github.com/curiouslearning/retrospective-agent.git
 cd retrospective-agent
 npm install
 npm run dev
 ```
 
-Navigate to `http://localhost:8080`
+Navigate to `http://localhost:8080` — you will be prompted to sign in with Google.
 
 ------------------------------------------------------------------------
 
@@ -122,6 +162,10 @@ All secrets and infrastructure live in the `gdl-reader-dev` GCP project.
 | `retrospective-drive-user` | Workspace user the service account impersonates for Docs/Drive |
 | `retrospective-storage-bucket` | GCS bucket name for storing document links |
 | `retrospective-slack-webhook` | Slack webhook URL (optional) |
+| `retrospective-oauth-client-id` | Google OAuth2 client ID for browser login |
+| `retrospective-oauth-client-secret` | Google OAuth2 client secret for browser login |
+| `retrospective-session-secret` | Random string used to sign session cookies |
+| `retrospective-allowed-emails` | Comma-separated list of emails permitted to access the app |
 
 To update a secret:
 ```bash
@@ -144,13 +188,25 @@ The service account must have **Editor** access to this folder.
 
 ## Deployment
 
+Deployment is automated via Cloud Build. Any push to `main` triggers a build and deploy to Cloud Run.
+
+To deploy manually:
+
 ```bash
 gcloud run deploy retrospective-agent \
-  --image=gcr.io/gdl-reader-dev/retrospective-agent:latest \
-  --region=us-central1 \
+  --image=us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:latest \
+  --region=us-east1 \
   --platform=managed \
   --no-allow-unauthenticated \
-  --service-account=devops@gdl-reader-dev.iam.gserviceaccount.com \
+  --project=gdl-reader-dev
+```
+
+The `BASE_URL` environment variable must be set on the Cloud Run service and must match the authorized redirect URI registered in the OAuth Client ID:
+
+```bash
+gcloud run services update retrospective-agent \
+  --region=us-east1 \
+  --set-env-vars BASE_URL=https://retrospective-agent-959872421018.us-east1.run.app \
   --project=gdl-reader-dev
 ```
 
