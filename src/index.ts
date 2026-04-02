@@ -1,6 +1,7 @@
 import express from "express";
 import type { Request, Response } from "express";
 import { loadConfig } from "./config.js";
+import { setupAuth, requireAuth } from "./middleware/auth.js";
 import { buildRetrospective } from "./tools/buildRetrospective.js";
 import { getOngoingEpics, getEpicAndIssues, getAllProjects, getCompletedIssuesWithCycleTime } from "./integrations/jira.js";
 import { getRetrospective, saveRetrospective } from "./storage.js";
@@ -12,6 +13,23 @@ async function main() {
 
     const app = express();
     app.use(express.json());
+
+    // Auth setup - must come before routes
+    setupAuth(app, {
+        googleClientId: config.GOOGLE_OAUTH_CLIENT_ID,
+        googleClientSecret: config.GOOGLE_OAUTH_CLIENT_SECRET,
+        sessionSecret: config.SESSION_SECRET,
+        allowedEmails: config.ALLOWED_EMAILS,
+        baseUrl: config.BASE_URL,
+    });
+
+    // Health check - exempt from auth so Cloud Run can probe it freely
+    app.get("/health", (_req, res) => {
+        res.json({ ok: true });
+    });
+
+    // All routes below require a valid Google login session
+    app.use(requireAuth);
 
     app.get("/analytics", (_req, res) => {
         res.send(`
@@ -389,10 +407,6 @@ async function main() {
     </body>
     </html>
     `);
-    });
-
-    app.get("/health", (_req, res) => {
-        res.json({ ok: true });
     });
 
     app.get("/api/projects", async (_req, res) => {
