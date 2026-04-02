@@ -49,12 +49,29 @@ export function setupAuth(app: Express, config: {
     scope: ['email', 'profile'],
   }));
 
-    app.get('/auth/callback',
+app.get('/auth/callback',
+    (req: Request, res: Response, next: NextFunction) => {
         passport.authenticate('google', { 
-        failureRedirect: '/auth/denied',
-        }),
-        (_req: Request, res: Response) => res.redirect('/')
-    );
+            failureRedirect: '/auth/denied',
+        }, (err: any, user: any, info: any) => {
+            if (err) {
+                console.error('OAuth callback error:', JSON.stringify(err));
+                return res.status(500).send(`Auth error: ${err.message}`);
+            }
+            if (!user) {
+                console.error('OAuth no user:', JSON.stringify(info));
+                return res.redirect('/auth/denied');
+            }
+            req.logIn(user, (loginErr) => {
+                if (loginErr) {
+                    console.error('Login error:', loginErr);
+                    return next(loginErr);
+                }
+                return res.redirect('/');
+            });
+        })(req, res, next);
+    }
+);
 
   app.get('/auth/denied', (_req: Request, res: Response) => {
     res.status(403).send('Access denied. Your account is not on the allowlist.');
