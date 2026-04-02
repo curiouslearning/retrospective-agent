@@ -1,10 +1,10 @@
 import { config } from "../config.js";
 
-const auth = Buffer.from(
-    `${config.JIRA_EMAIL}:${config.JIRA_API_TOKEN}`
-).toString("base64");
-
 async function jira(path: string, method = "GET", body?: any) {
+    const auth = Buffer.from(
+        `${config.JIRA_EMAIL}:${config.JIRA_API_TOKEN}`
+    ).toString("base64");
+
     const res = await fetch(`${config.JIRA_BASE_URL}${path}`, {
         method,
         headers: {
@@ -62,7 +62,7 @@ export async function getTransitions(issueKey: string) {
 
 export async function getAllProjects() {
     const result = await jira(`/rest/api/3/project`);
-    
+
     return result.map((project: any) => ({
         key: project.key,
         name: project.name,
@@ -106,9 +106,8 @@ export async function getOngoingEpics(projectKey: string) {
         status: issue.fields.status.name
     }));
 
-    // Get progress for each epic
     const epicsWithProgress = await Promise.all(
-        epics.map(async (epic) => {
+        epics.map(async (epic: any) => {
             const progress = await getEpicProgress(epic.key);
             return {
                 ...epic,
