@@ -23,6 +23,7 @@ export function setupAuth(app: Express, config: {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  console.log('OAuth callback URL:', `${config.baseUrl}/auth/callback`);
   passport.use(new GoogleStrategy(
     {
       clientID: config.googleClientId,
