@@ -1,6 +1,6 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import session from 'express-session';
+import cookieSession from 'cookie-session';
 import { Express, Request, Response, NextFunction } from 'express';
 
 export function setupAuth(app: Express, config: {
@@ -10,26 +10,34 @@ export function setupAuth(app: Express, config: {
   allowedEmails: string[];
   baseUrl: string;
 }) {
-  app.use(session({
-    secret: config.sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    },
+  app.use(cookieSession({
+    name: 'session',
+    keys: [config.sessionSecret],
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
   }));
+
+  // Passport compatibility shim for cookie-session
+  app.use((req: any, _res: any, next: any) => {
+    if (req.session && !req.session.regenerate) {
+      req.session.regenerate = (cb: any) => cb();
+    }
+    if (req.session && !req.session.save) {
+      req.session.save = (cb: any) => cb();
+    }
+    next();
+  });
 
   app.use(passport.initialize());
   app.use(passport.session());
 
-  console.log('OAuth callback URL:', `${config.baseUrl}/auth/callback`);
   passport.use(new GoogleStrategy(
     {
-    clientID: config.googleClientId,
-    clientSecret: config.googleClientSecret,
-    callbackURL: `${config.baseUrl}/auth/callback`,
-    proxy: true,
+      clientID: config.googleClientId,
+      clientSecret: config.googleClientSecret,
+      callbackURL: `${config.baseUrl}/auth/callback`,
+      proxy: true,
     },
     (_accessToken, _refreshToken, profile, done) => {
       const email = profile.emails?.[0]?.value;
@@ -49,29 +57,20 @@ export function setupAuth(app: Express, config: {
     scope: ['email', 'profile'],
   }));
 
-app.get('/auth/callback',
+  app.get('/auth/callback',
     (req: Request, res: Response, next: NextFunction) => {
-        passport.authenticate('google', { 
-            failureRedirect: '/auth/denied',
-        }, (err: any, user: any, info: any) => {
-            if (err) {
-                console.error('OAuth callback error:', JSON.stringify(err));
-                return res.status(500).send(`Auth error: ${err.message}`);
-            }
-            if (!user) {
-                console.error('OAuth no user:', JSON.stringify(info));
-                return res.redirect('/auth/denied');
-            }
-            req.logIn(user, (loginErr) => {
-                if (loginErr) {
-                    console.error('Login error:', loginErr);
-                    return next(loginErr);
-                }
-                return res.redirect('/');
-            });
-        })(req, res, next);
+      passport.authenticate('google', {
+        failureRedirect: '/auth/denied',
+      }, (err: any, user: any) => {
+        if (err) return next(err);
+        if (!user) return res.redirect('/auth/denied');
+        req.logIn(user, (loginErr) => {
+          if (loginErr) return next(loginErr);
+          return res.redirect('/');
+        });
+      })(req, res, next);
     }
-);
+  );
 
   app.get('/auth/denied', (_req: Request, res: Response) => {
     res.status(403).send('Access denied. Your account is not on the allowlist.');
