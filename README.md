@@ -25,7 +25,7 @@ The **Retrospective Agent** automates creation of Retrospective documents in Goo
 - Express (with web UI)
 - Jira REST API
 - Google Docs + Drive API (via service account)
-- Google OAuth2 (browser login)
+- Google OAuth2 (browser login via googleapis)
 - Google Cloud Secret Manager
 - Google Cloud Storage
 - Google Cloud Run
@@ -38,7 +38,11 @@ The **Retrospective Agent** automates creation of Retrospective documents in Goo
 
 The app uses **Google OAuth2** for browser access. When a user visits the app, they are redirected to a Google login prompt. After signing in, their email is checked against an allowlist stored in Secret Manager (`retrospective-allowed-emails`). Only listed emails are granted access.
 
-Sessions are maintained via a signed cookie (8-hour expiry). The `/health` endpoint is exempt from authentication so Cloud Run can probe it freely.
+Sessions are maintained via a signed cookie (7-day expiry).
+
+> **Note for developers:** The session cookie uses `secure: false` intentionally. Cloud Run terminates TLS at the load balancer, so the app sees plain HTTP internally — `secure: true` would prevent the cookie from being set. The connection is still encrypted end-to-end from the user's perspective.
+
+The `/health` endpoint is exempt from authentication so Cloud Run can probe it freely.
 
 ### Adding or Removing Users
 
@@ -50,18 +54,12 @@ echo -n "user1@example.com,user2@example.com" | \
   --project=gdl-reader-dev --data-file=-
 ```
 
-Changes take effect on the next container startup (i.e. after the next deploy or Cloud Run scale event). To force immediate effect, redeploy:
+Changes take effect on the next container startup. To force immediate effect:
 
 ```bash
 gcloud run deploy retrospective-agent --region=us-east1 --project=gdl-reader-dev \
   --image=us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:latest
 ```
-
-### OAuth Consent Screen
-
-The OAuth app is configured as **External** with **Testing** status in GCP, which supports up to 100 users. Each allowed user must also be added to the test user list in:
-
-**APIs & Services → OAuth consent screen → Test users**
 
 ------------------------------------------------------------------------
 
@@ -79,7 +77,7 @@ Download and install from https://cloud.google.com/sdk/docs/install, then initia
 gcloud init
 ```
 
-Sign in with your Google account when prompted.
+Sign in with your Google account when prompted and select project `gdl-reader-dev` (option 33 in the project list).
 
 ### 3. Request GCP Access
 
@@ -100,23 +98,7 @@ Required once per machine so the app can read secrets from Secret Manager:
 gcloud auth application-default login
 ```
 
-### 5. Enable Google APIs for Local Development
-
-Required once per developer:
-
-```bash
-gcloud services enable docs.googleapis.com drive.googleapis.com
-```
-
-### 6. Add Localhost Redirect URI
-
-In **GCP Console → APIs & Services → Credentials → OAuth 2.0 Client ID**, add:
-
-```
-http://localhost:8080/auth/callback
-```
-
-### 7. Clone and Run
+### 5. Clone and Run
 
 ```bash
 git clone https://github.com/curiouslearning/retrospective-agent.git
@@ -126,6 +108,10 @@ npm run dev
 ```
 
 Navigate to `http://localhost:8080` — you will be prompted to sign in with Google.
+
+### Local OAuth Login (Optional)
+
+If you want the Google login flow to work locally, add `http://localhost:8080/auth/callback` as an authorized redirect URI in **GCP Console → APIs & Services → Credentials → OAuth 2.0 Client ID**. Without this, the app will still work if you hit the API endpoints directly, but visiting the UI will redirect you to Google and fail the callback.
 
 ------------------------------------------------------------------------
 
@@ -197,16 +183,7 @@ gcloud run deploy retrospective-agent \
   --image=us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:latest \
   --region=us-east1 \
   --platform=managed \
-  --no-allow-unauthenticated \
-  --project=gdl-reader-dev
-```
-
-The `BASE_URL` environment variable must be set on the Cloud Run service and must match the authorized redirect URI registered in the OAuth Client ID:
-
-```bash
-gcloud run services update retrospective-agent \
-  --region=us-east1 \
-  --set-env-vars BASE_URL=https://retrospective-agent-959872421018.us-east1.run.app \
+  --allow-unauthenticated \
   --project=gdl-reader-dev
 ```
 

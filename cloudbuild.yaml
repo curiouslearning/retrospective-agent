@@ -28,7 +28,8 @@ steps:
       - '--image=us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:$COMMIT_SHA'
       - '--region=us-east1'
       - '--platform=managed'
-      - '--no-allow-unauthenticated'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=TZ=UTC,NODE_ENV=production,BASE_URL=https://retrospective-agent-959872421018.us-east1.run.app'
 
 images:
   - 'us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:$COMMIT_SHA'
