@@ -57,8 +57,8 @@ export function setupAuth(app: Express, config: {
       (req.session as any).user = { email, name: data.name };
       return res.redirect('/');
     } catch (err: any) {
-      console.error('OAuth callback error:', err.message);
-      return res.redirect('/auth/login');
+    console.error('OAuth callback error:', err.message, JSON.stringify(err.response?.data));
+    return res.redirect('/auth/login');
     }
   });
 
