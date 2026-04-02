@@ -2,6 +2,10 @@ import { getEpicAndIssues, getTransitions } from "../integrations/jira.js";
 import { computeCycleTime } from "../domain/cycleTime.js";
 import { createDoc } from "../integrations/google.js";
 import { roundHalfUp } from "../domain/workingDays.js";
+import type { AppConfig } from "../config.js";
+
+// Only change from the original: `config` is accepted as a parameter and
+// forwarded to `createDoc`.  All business logic is identical.
 
 type Transition = {
     to: string;
@@ -19,7 +23,7 @@ type RetrospectiveIssue = {
 const TEAM_MAP: Record<string, string> = {
     "assessment js": "Type Ninjas",
     "feed the monster": "Curious Creators",
-    "platform devs in disguise": "Platform Devs in Disguise"
+    "platform devs in disguise": "Platform Devs in Disguise",
 };
 
 function getTeamName(boardName: string): string {
@@ -47,7 +51,7 @@ function getCycleWindow(
 
     return {
         firstInProgressAt: firstInProgress.at,
-        finalDoneAt: doneEvents[doneEvents.length - 1].at
+        finalDoneAt: doneEvents[doneEvents.length - 1].at,
     };
 }
 
@@ -65,49 +69,23 @@ function getDaysInYear(date: Date): number {
 
 function normalizeDescription(description: unknown): string {
     if (!description) return "";
-
     if (typeof description === "string") {
         return description.replace(/\r\n/g, "\n").trim();
     }
-
-    if (typeof description !== "object") {
-        return "";
-    }
+    if (typeof description !== "object") return "";
 
     function extractText(node: any): string {
         if (!node) return "";
-
-        if (Array.isArray(node)) {
-            return node.map(extractText).join("");
-        }
-
-        if (node.type === "text") {
-            return node.text ?? "";
-        }
-
-        if (node.type === "hardBreak") {
-            return "\n";
-        }
-
-        if (node.type === "paragraph") {
-            const inner = extractText(node.content ?? []);
-            return inner + "\n";
-        }
-
-        if (node.type === "doc") {
-            return extractText(node.content ?? []);
-        }
-
-        if (node.content) {
-            return extractText(node.content);
-        }
-
+        if (Array.isArray(node)) return node.map(extractText).join("");
+        if (node.type === "text") return node.text ?? "";
+        if (node.type === "hardBreak") return "\n";
+        if (node.type === "paragraph") return extractText(node.content ?? []) + "\n";
+        if (node.type === "doc") return extractText(node.content ?? []);
+        if (node.content) return extractText(node.content);
         return "";
     }
 
-    return extractText(description)
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
+    return extractText(description).replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function escapeRegex(text: string): string {
@@ -119,13 +97,8 @@ function extractSectionBetween(
     startHeaders: string[],
     endHeaders: string[]
 ): string | null {
-    const startPattern = startHeaders
-        .map((h) => escapeRegex(h))
-        .join("|");
-
-    const endPattern = endHeaders
-        .map((h) => escapeRegex(h))
-        .join("|");
+    const startPattern = startHeaders.map((h) => escapeRegex(h)).join("|");
+    const endPattern = endHeaders.map((h) => escapeRegex(h)).join("|");
 
     const regex = new RegExp(
         `(?:^|\\n)(?:${startPattern})\\s*:?\\s*\\n?([\\s\\S]*?)(?=(?:\\n(?:${endPattern})\\s*:?)|$)`,
@@ -134,18 +107,12 @@ function extractSectionBetween(
 
     const match = text.match(regex);
     if (!match || !match[1]) return null;
-
     const cleaned = match[1].trim();
     return cleaned.length > 0 ? cleaned : null;
 }
 
-function extractSectionToEnd(
-    text: string,
-    startHeaders: string[]
-): string | null {
-    const startPattern = startHeaders
-        .map((h) => escapeRegex(h))
-        .join("|");
+function extractSectionToEnd(text: string, startHeaders: string[]): string | null {
+    const startPattern = startHeaders.map((h) => escapeRegex(h)).join("|");
 
     const regex = new RegExp(
         `(?:^|\\n)(?:${startPattern})\\s*:?\\s*\\n?([\\s\\S]*)$`,
@@ -154,17 +121,18 @@ function extractSectionToEnd(
 
     const match = text.match(regex);
     if (!match || !match[1]) return null;
-
     const cleaned = match[1].trim();
     return cleaned.length > 0 ? cleaned : null;
 }
 
 export async function buildRetrospective({
     board_name,
-    epic_key
+    epic_key,
+    config,
 }: {
     board_name: string;
     epic_key: string;
+    config: AppConfig;
 }) {
     const { epic, issues } = await getEpicAndIssues(epic_key);
 
@@ -181,13 +149,12 @@ export async function buildRetrospective({
                 summary: issue.fields.summary,
                 cycle,
                 firstInProgressAt: window.firstInProgressAt,
-                finalDoneAt: window.finalDoneAt
+                finalDoneAt: window.finalDoneAt,
             });
         }
     }
 
     const done = results;
-
     const avg =
         done.length > 0
             ? roundHalfUp(done.reduce((a, b) => a + b.cycle, 0) / done.length)
@@ -199,15 +166,15 @@ export async function buildRetrospective({
     const wentWellText =
         wentWell.length > 0
             ? wentWell
-                .map((i) => `${i.key} - ${i.summary} (${i.cycle} working days)`)
-                .join("\n")
+                  .map((i) => `${i.key} - ${i.summary} (${i.cycle} working days)`)
+                  .join("\n")
             : "None";
 
     const toInvestigateText =
         toInvestigate.length > 0
             ? toInvestigate
-                .map((i) => `${i.key} - ${i.summary} (${i.cycle} working days)`)
-                .join("\n")
+                  .map((i) => `${i.key} - ${i.summary} (${i.cycle} working days)`)
+                  .join("\n")
             : "None";
 
     const subtitle = `Retrospective - ${formatDateMMDDYYYY(new Date())}`;
@@ -221,7 +188,6 @@ export async function buildRetrospective({
         const start = new Date(
             Math.min(...done.map((i) => new Date(i.firstInProgressAt).getTime()))
         );
-
         const end = new Date(
             Math.max(...done.map((i) => new Date(i.finalDoneAt).getTime()))
         );
@@ -239,17 +205,17 @@ export async function buildRetrospective({
     const descriptionText = normalizeDescription(epic.fields.description);
 
     const businessValueText =
-        extractSectionBetween(
-            descriptionText,
-            ["Business Value"],
-            ["Strategic Objective", "Success Looks Like", "Success Measurement"]
-        ) ?? "Not specified in epic description.";
+        extractSectionBetween(descriptionText, ["Business Value"], [
+            "Strategic Objective",
+            "Success Looks Like",
+            "Success Measurement",
+        ]) ?? "Not specified in epic description.";
 
     const successLooksLikeText =
-        extractSectionToEnd(
-            descriptionText,
-            ["Success Looks Like", "Success Measurement"]
-        ) ?? "Not specified in epic description.";
+        extractSectionToEnd(descriptionText, [
+            "Success Looks Like",
+            "Success Measurement",
+        ]) ?? "Not specified in epic description.";
 
     const content = `${epic.fields.summary}
 ${subtitle}
@@ -295,9 +261,8 @@ What Should We Do Differently Next Time:
 - 
 `;
 
-    const doc = await createDoc(epic.fields.summary, content);
+    // Pass config through so createDoc can use the service-account auth client
+    const doc = await createDoc(epic.fields.summary, content, config);
 
-    return {
-        document: doc
-    };
+    return { document: doc };
 }
