@@ -53,9 +53,10 @@ export function setupAuth(app: Express, config: {
   passport.deserializeUser((user, done) => done(null, user as Express.User));
 
   // Auth routes
-  app.get('/auth/login', passport.authenticate('google', {
-    scope: ['email', 'profile'],
-  }));
+    app.get('/auth/login', passport.authenticate('google', {
+        scope: ['email', 'profile'],
+        state: false,
+    } as any));
 
   app.get('/auth/callback',
     (req: Request, res: Response, next: NextFunction) => {
