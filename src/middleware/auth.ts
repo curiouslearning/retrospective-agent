@@ -27,11 +27,12 @@ export function setupAuth(app: Express, config: {
     sameSite: 'lax',
   }));
 
-  app.get('/auth/login', (_req: Request, res: Response) => {
+app.get('/auth/login', (_req: Request, res: Response) => {
     const oAuth2Client = getOAuthClient();
     const url = oAuth2Client.generateAuthUrl({
       access_type: 'online',
       scope: ['email', 'profile'],
+      prompt: 'select_account',
     });
     res.redirect(url);
   });
