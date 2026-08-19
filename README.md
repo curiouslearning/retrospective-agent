@@ -46,20 +46,84 @@ The `/health` endpoint is exempt from authentication so Cloud Run can probe it f
 
 ### Adding or Removing Users
 
-Update the `retrospective-allowed-emails` secret with a comma-separated list of email addresses:
+Use `scripts/allowlist.sh`:
 
 ```bash
-echo -n "user1@example.com,user2@example.com" | \
-  gcloud secrets versions add retrospective-allowed-emails \
-  --project=gdl-reader-dev --data-file=-
+./scripts/allowlist.sh list                          # who has access today
+./scripts/allowlist.sh add --dry-run jan@codev.com   # preview the change
+./scripts/allowlist.sh add jan@codev.com miguel@codev.com
+./scripts/allowlist.sh remove someone@codev.com
+./scripts/allowlist.sh redeploy                      # apply the change immediately
 ```
 
-Changes take effect on the next container startup. To force immediate effect:
+The script reads the current list, writes it back with your change, and verifies the
+result. Run `./scripts/allowlist.sh --help` for all options.
+
+**Why a script rather than a one-line `gcloud` command:** the allowlist lives in the
+`retrospective-allowed-emails` secret as one comma-separated string, and a new secret
+version **replaces** the whole value — it does not append. Writing just the new address
+would silently revoke everyone else's access. The script always reads the current value
+first, and uses `printf` rather than `echo`, since a trailing newline would end up inside
+the last email address.
+
+Changes take effect on the next container startup. `redeploy` forces it immediately by
+redeploying the image the service is already running — a restart, not a code change.
+Images are tagged by commit SHA (see `cloudbuild.yaml`); there is no `:latest` tag, which
+is why the script looks the image reference up rather than hardcoding it.
+
+If you would rather run the steps by hand, `scripts/allowlist.sh` is short and the
+`gcloud` invocations in it are the canonical ones.
+
+#### Permissions required
+
+The script needs these roles. Project **Owner** or **Editor** covers all of them — which
+is why it works for whoever set the project up, and why it is easy to hand a teammate a
+subset that only half works.
+
+| To run | You need | Grant on |
+| --- | --- | --- |
+| `list` (and the read half of `add`/`remove`) | `roles/secretmanager.secretAccessor` | the secret |
+| `add`, `remove` (writing a new version) | `roles/secretmanager.secretVersionAdder` | the secret |
+| `versions` | `roles/secretmanager.viewer` | the secret |
+| `redeploy` | `roles/run.developer` | the project |
+| `redeploy` | `roles/iam.serviceAccountUser` | the runtime service account |
+
+`secretAccessor` grants only `secretmanager.versions.access` — it does **not** allow
+writing a new version or even listing versions. Someone with just that role can run
+`list` and nothing else, so grant `secretVersionAdder` alongside it for anyone who
+manages access.
+
+`redeploy` needs `iam.serviceAccountUser` because deploying a Cloud Run service that runs
+as a service account requires permission to *act as* that account. The service runs as
+`959872421018-compute@developer.gserviceaccount.com`.
+
+To grant someone the ability to manage the allowlist (scoped to the one secret, not the
+whole project):
 
 ```bash
-gcloud run deploy retrospective-agent --region=us-east1 --project=gdl-reader-dev \
-  --image=us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:latest
+PERSON="user:person@curiouslearning.org"
+
+for ROLE in roles/secretmanager.secretAccessor \
+            roles/secretmanager.secretVersionAdder \
+            roles/secretmanager.viewer; do
+  gcloud secrets add-iam-policy-binding retrospective-allowed-emails \
+    --project=gdl-reader-dev --member="$PERSON" --role="$ROLE"
+done
 ```
+
+And to let them redeploy as well:
+
+```bash
+gcloud projects add-iam-policy-binding gdl-reader-dev \
+  --member="$PERSON" --role=roles/run.developer
+
+gcloud iam service-accounts add-iam-policy-binding \
+  959872421018-compute@developer.gserviceaccount.com \
+  --project=gdl-reader-dev --member="$PERSON" --role=roles/iam.serviceAccountUser
+```
+
+To check what you have, just run `./scripts/allowlist.sh list` — it names the missing role
+when a call is denied.
 
 ------------------------------------------------------------------------
 
@@ -180,10 +244,19 @@ To deploy manually:
 
 ```bash
 gcloud run deploy retrospective-agent \
-  --image=us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:latest \
+  --image=us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent:COMMIT_SHA \
   --region=us-east1 \
   --platform=managed \
   --allow-unauthenticated \
+  --project=gdl-reader-dev
+```
+
+Replace `COMMIT_SHA` with the commit you want to deploy — `cloudbuild.yaml` tags images by
+commit SHA and never publishes a `:latest` tag. To list what has been built:
+
+```bash
+gcloud artifacts docker tags list \
+  us-east1-docker.pkg.dev/gdl-reader-dev/gdl-reader/retrospective-agent \
   --project=gdl-reader-dev
 ```
 

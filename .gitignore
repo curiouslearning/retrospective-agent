@@ -50,3 +50,8 @@ coverage/
 # Generated data
 # -------------------------
 retrospectives.json
+# -------------------------
+# Claude Code
+# -------------------------
+# Shared skills under .claude/skills/ are committed; local settings are not.
+.claude/settings.local.json
