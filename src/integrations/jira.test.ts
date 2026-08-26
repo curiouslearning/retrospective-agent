@@ -32,6 +32,7 @@ function makeIssue(key: string, assigneeDisplayName: string | null) {
 
 afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
 });
 
 describe("getCompletedIssuesWithCycleTime", () => {
