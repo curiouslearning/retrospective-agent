@@ -15,10 +15,13 @@ type Transition = {
 type RetrospectiveIssue = {
     key: string;
     summary: string;
+    assignee: string | null;
     cycle: number;
     firstInProgressAt: string;
     finalDoneAt: string;
 };
+
+const CONTENT_TEAM_ASSIGNEE = "Content Team";
 
 const TEAM_MAP: Record<string, string> = {
     "assessment js": "Type Ninjas",
@@ -154,6 +157,7 @@ export async function buildRetrospective({
             results.push({
                 key: issue.key,
                 summary: issue.fields.summary,
+                assignee: issue.fields.assignee?.displayName ?? null,
                 cycle,
                 firstInProgressAt: window.firstInProgressAt,
                 finalDoneAt: window.finalDoneAt,
@@ -162,9 +166,18 @@ export async function buildRetrospective({
     }
 
     const done = results;
+    // Content Team tasks are excluded from cycle time and throughput calculations
+    // but are still shown in the What Went Well / Didn't Go As Planned sections.
+    const nonContentTeamDone = done.filter(
+        (i) => i.assignee !== CONTENT_TEAM_ASSIGNEE
+    );
+
     const avg =
-        done.length > 0
-            ? roundHalfUp(done.reduce((a, b) => a + b.cycle, 0) / done.length)
+        nonContentTeamDone.length > 0
+            ? roundHalfUp(
+                  nonContentTeamDone.reduce((a, b) => a + b.cycle, 0) /
+                      nonContentTeamDone.length
+              )
             : 0;
 
     const wentWell = done.filter((i) => i.cycle <= 5);
@@ -235,7 +248,7 @@ Share of Year: ${shareOfYear}
 TEAM STATS
 Team Name: ${getTeamName(board_name)}
 Average Cycle Time: ${avg} days
-Throughput: ${done.length} tasks
+Throughput: ${nonContentTeamDone.length} tasks
 
 Key Artifacts Generated:
 [PM or Team Lead will manually fill out this section]
