@@ -129,6 +129,8 @@ export async function getOpenTicketCount(epicKey: string): Promise<number> {
     return result.issues.length as number;
 }
 
+const EXCLUDED_ASSIGNEES = ["Content Team"];
+
 export async function getCompletedIssuesWithCycleTime(projectKey: string, daysBack: number = 30) {
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - daysBack);
@@ -137,14 +139,16 @@ export async function getCompletedIssuesWithCycleTime(projectKey: string, daysBa
     const result = await jira(`/rest/api/3/search/jql`, "POST", {
         jql: `project = "${projectKey}" AND status = Done AND statusCategoryChangedDate >= "${formattedDate}" AND issuetype != Epic ORDER BY statusCategoryChangedDate DESC`,
         maxResults: 1000,
-        fields: ["summary", "created", "resolutiondate", "issuetype"]
+        fields: ["summary", "created", "resolutiondate", "issuetype", "assignee"]
     });
 
-    return result.issues.map((issue: any) => ({
-        key: issue.key,
-        summary: issue.fields.summary,
-        issueType: issue.fields.issuetype.name,
-        created: issue.fields.created,
-        completed: issue.fields.resolutiondate
-    }));
+    return result.issues
+        .filter((issue: any) => !EXCLUDED_ASSIGNEES.includes(issue.fields.assignee?.displayName))
+        .map((issue: any) => ({
+            key: issue.key,
+            summary: issue.fields.summary,
+            issueType: issue.fields.issuetype.name,
+            created: issue.fields.created,
+            completed: issue.fields.resolutiondate
+        }));
 }
